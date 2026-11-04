@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>스마트 GIF 생성기</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="clover-layer" aria-hidden="true">
+    <img class="clover four c1" src="assets/clover-four.svg" alt="" />
+    <img class="clover three c2" src="assets/clover-three.svg" alt="" />
+    <img class="clover four c3" src="assets/clover-four.svg" alt="" />
+    <img class="clover three c4" src="assets/clover-three.svg" alt="" />
+    <img class="clover four c5" src="assets/clover-four.svg" alt="" />
+    <img class="clover three c6" src="assets/clover-three.svg" alt="" />
+    <img class="clover four c7" src="assets/clover-four.svg" alt="" />
+    <img class="clover three c8" src="assets/clover-three.svg" alt="" />
+    <img class="clover four c9" src="assets/clover-four.svg" alt="" />
+    <img class="clover three c10" src="assets/clover-three.svg" alt="" />
+    <img class="clover four c11" src="assets/clover-four.svg" alt="" />
+    <img class="clover three c12" src="assets/clover-three.svg" alt="" />
+  </div>
+  <header class="topbar">
+    <a class="logo-link" href="http://kmou.ac.kr" target="_blank" rel="noopener noreferrer" title="한국해양대학교 바로가기">
+      <img src="assets/kmou.png" alt="한국해양대학교 로고" class="logo-img" />
+    </a>
+    <h1 class="site-title">스마트 GIF 생성기</h1>
+  </header>
+
+  <main class="page">
+    <section class="hero-row" aria-label="서비스 소개">
+      <article class="hero-card">
+        <div class="hero-visual">
+          <img src="assets/hero-video-to-gif.jpg" alt="영상을 GIF로 바꾸는 사람들 일러스트" />
+        </div>
+        <p>VIDEO를 GIF로 변환</p>
+      </article>
+      <article class="hero-card">
+        <div class="hero-visual">
+          <img src="assets/hero-video-to-ani.jpg" alt="동영상을 애니메이션으로 만드는 사람들 일러스트" />
+        </div>
+        <p>동영상을 애니로</p>
+      </article>
+    </section>
+
+    <div class="clover-divider" aria-hidden="true">
+      <img src="assets/clover-three.svg" alt="" />
+      <img src="assets/clover-four.svg" alt="" />
+      <img src="assets/clover-three.svg" alt="" />
+      <img src="assets/clover-four.svg" alt="" />
+      <img src="assets/clover-three.svg" alt="" />
+    </div>
+
+    <section class="upload-wrap">
+      <input id="fileInput" type="file" accept="video/*" hidden />
+      <button type="button" id="pickBtn" class="pick-btn" aria-label="동영상 파일 선택">
+        <span class="pick-btn-plus" aria-hidden="true">+</span>
+        동영상 파일 선택
+      </button>
+      <p class="drop-hint">또는 버튼을 여기로 드래그해서 바로 업로드하세요 <span>(한 번에 1개)</span></p>
+    </section>
+
+    <section class="format-section" aria-label="변환 가능한 동영상 포맷">
+      <h2>GIF로 변환할 수 있는 동영상 포맷</h2>
+      <p class="format-sub">아래 대표 포맷은 출력 크기를 직접 조절한 뒤 변환할 수 있습니다.</p>
+      <div id="formatIcons" class="format-grid"></div>
+    </section>
+
+    <section id="errorBanner" class="error-banner" hidden>
+      <div class="error-title">이 파일은 변환할 수 없습니다</div>
+      <p id="errorMessage" class="error-message"></p>
+      <div class="error-guide">
+        <strong>변환 가능한 동영상 포맷을 선택해 주세요</strong>
+        <div id="errorFormats" class="format-grid compact"></div>
+      </div>
+    </section>
+
+    <section class="history-section">
+      <div class="history-head">
+        <h2>변환 기록</h2>
+        <div class="history-actions">
+          <label class="check-label">
+            <input type="checkbox" id="selectAll" />
+            전체 선택
+          </label>
+          <button type="button" id="deleteSelectedBtn" class="ghost-btn" disabled>
+            선택 삭제
+          </button>
+        </div>
+      </div>
+      <p id="emptyHistory" class="empty-history">아직 업로드한 파일이 없습니다. 동영상을 올리면 기록이 여기에 쌓입니다.</p>
+      <div id="jobList" class="job-list"></div>
+    </section>
+  </main>
+
+  <div id="modeModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-labelledby="modeTitle" aria-modal="true">
+      <h2 id="modeTitle">어떻게 변환할까요?</h2>
+      <p class="modal-file" id="modeFileName"></p>
+      <p class="modal-sub">변환 방식을 먼저 선택한 뒤 작업을 시작합니다.</p>
+      <div class="mode-choices">
+        <button type="button" class="mode-card" data-mode="gif">
+          <div class="mode-visual">
+            <img src="assets/hero-video-to-gif.jpg" alt="" />
+          </div>
+          <strong>GIF로 변환</strong>
+          <span>영상 프레임을 그대로 GIF로 만듭니다.</span>
+        </button>
+        <button type="button" class="mode-card" data-mode="ani">
+          <div class="mode-visual">
+            <img src="assets/hero-video-to-ani.jpg" alt="" />
+          </div>
+          <strong>애니로 변환</strong>
+          <span>올린 영상의 장면과 동작을 그대로 살리고, 디즈니·픽사처럼 알록달록한 만화영화로 다시 그립니다.</span>
+        </button>
+      </div>
+      <button type="button" id="modeCancel" class="ghost-btn modal-cancel">취소</button>
+    </div>
+  </div>
+
+  <script src="lib/gif.js"></script>
+  <script src="lib/gif.worker.embed.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
