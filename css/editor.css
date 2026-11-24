@@ -232,6 +232,34 @@
   color: var(--green-dark);
 }
 
+/* 뱃지 */
+.live-badge {
+  display: inline-block;
+  background: #e8f5e9;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #c8e6c9;
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.completed-badge {
+  display: inline-block;
+  background: #2f7d4a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
 .editor-card-body {
   padding: 20px;
 }
@@ -245,24 +273,32 @@
   background: #f8faf8;
   border: 1px solid #e1eee2;
   border-radius: 12px;
-  padding: 12px;
+  padding: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 180px;
-  max-height: 380px;
+  min-height: 220px;
+  max-height: 480px;
   overflow: hidden;
   margin-bottom: 16px;
+  position: relative;
 }
 
 .gif-preview-wrap img,
-.gif-preview-wrap video,
-.gif-preview-wrap canvas {
+.gif-preview-wrap video {
   max-width: 100%;
-  max-height: 350px;
+  max-height: 440px;
   object-fit: contain;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  transition: transform 0.15s ease;
+}
+
+/* 왼쪽 실시간 캔버스: 크기 조절 시 실제로 커지고 작아짐 */
+.gif-preview-wrap canvas {
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  display: block;
 }
 
 /* 파일 정보 그리드 */
@@ -340,55 +376,21 @@
   gap: 20px;
 }
 
-/* 실시간 프리뷰 영역 (도구 조절 시 바로 확인 가능) */
-.live-preview-box {
-  background: #fdfefe;
-  border: 2px dashed #b9dfc0;
-  border-radius: 16px;
-  padding: 16px;
-  text-align: center;
-}
-
-.live-preview-header {
+/* 실시간 안내 배너 */
+.live-hint-banner {
+  background: #f1f8f2;
+  border: 1.5px solid #c2e2c6;
+  border-radius: 12px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.live-preview-title {
+  gap: 10px;
   font-size: 14px;
-  font-weight: 800;
   color: var(--green-dark);
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.live-preview-note {
-  font-size: 12px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.live-canvas-wrap {
-  width: 100%;
-  max-height: 240px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: #f2f7f2;
-  border-radius: 10px;
-  padding: 8px;
-}
-
-.live-canvas-wrap canvas {
-  max-width: 100%;
-  max-height: 220px;
-  object-fit: contain;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  border-radius: 6px;
+.live-hint-icon {
+  font-size: 20px;
 }
 
 /* 컨트롤 박스 공통 */

@@ -13,7 +13,7 @@
     origBlobUrl: null,
 
     // 현재 활성화된 도구
-    activeTool: null, // 'resize'|'crop'|'downsizing'|'convert'|'rotate'|'optimize'|'reverse'|'speed'|'cut'
+    activeTool: null,
     isProcessing: false,
 
     // 실시간 프리뷰 루프 관련
@@ -38,8 +38,8 @@
 
     // 2. Crop 상태
     crop: {
-      aspect: "1:1", // '1:1', '4:3', '16:9', '9:16', '3:2'
-      fillMode: "contain", // 'contain' (단색 여백), 'cover' (그림 확대)
+      aspect: "1:1",
+      fillMode: "contain",
       bgColor: "#ffffff"
     },
 
@@ -52,29 +52,29 @@
 
     // 4. Convert 상태
     convert: {
-      format: "mp4" // 'mp4' | 'jpg'
+      format: "mp4"
     },
 
     // 5. Rotate 상태
     rotate: {
-      deg: 0, // 0, 90, 180, 270
+      deg: 0,
       flipH: false,
       flipV: false
     },
 
     // 6. Optimize 상태
     optimize: {
-      mode: "smart" // 'smart' | 'light'
+      mode: "smart"
     },
 
     // 7. Reverse 상태
     reverse: {
-      mode: "true" // 'true' (역재생), 'pingpong' (왕복)
+      mode: "true"
     },
 
     // 8. Speed 상태
     speed: {
-      rate: 1.0 // 0.25 ~ 3.0
+      rate: 1.0
     },
 
     // 9. Cut 상태
@@ -116,11 +116,15 @@
     // 워크스페이스
     editorWorkspace: document.getElementById("editorWorkspace"),
 
-    // 왼쪽 원본 카드
+    // 왼쪽 원본 및 실시간 라이브 미리보기 카드
     originalCard: document.getElementById("originalCard"),
+    origCardTitle: document.getElementById("origCardTitle"),
+    liveStatusBadge: document.getElementById("liveStatusBadge"),
     origFoldBtn: document.getElementById("origFoldBtn"),
     origCardBody: document.getElementById("origCardBody"),
+    origPreviewWrap: document.getElementById("origPreviewWrap"),
     origImg: document.getElementById("origImg"),
+    livePreviewCanvas: document.getElementById("livePreviewCanvas"),
     origInfoGrid: document.getElementById("origInfoGrid"),
 
     // 왼쪽 결과 카드
@@ -136,8 +140,6 @@
     toolsCardTitle: document.getElementById("toolsCardTitle"),
     toolsGrid: document.getElementById("toolsGrid"),
     toolDetailContainer: document.getElementById("toolDetailContainer"),
-    livePreviewCanvas: document.getElementById("livePreviewCanvas"),
-    livePreviewNote: document.getElementById("livePreviewNote"),
 
     // 서브패널들
     panelResize: document.getElementById("panelResize"),
@@ -381,7 +383,10 @@
     els.originalCard.hidden = false;
     els.origCardBody.classList.remove("collapsed");
     els.origFoldBtn.textContent = "▼";
+    els.origImg.hidden = false;
     els.origImg.src = state.origBlobUrl;
+    els.livePreviewCanvas.hidden = true;
+    els.liveStatusBadge.hidden = true;
 
     renderOriginalInfo();
 
@@ -451,6 +456,13 @@
     els.toolsGrid.hidden = false;
     els.toolDetailContainer.hidden = true;
     els.toolProgress.hidden = true;
+
+    // 왼쪽 창을 다시 순수 원본 이미지 모드로 복원
+    els.origCardTitle.innerHTML = "&lt;Original GIF&gt;";
+    els.liveStatusBadge.hidden = true;
+    els.origImg.hidden = false;
+    els.livePreviewCanvas.hidden = true;
+    renderOriginalInfo();
   }
 
   function openTool(toolId) {
@@ -461,6 +473,12 @@
     els.toolDetailContainer.hidden = false;
     els.toolProgress.hidden = true;
     els.toolGoBtn.disabled = false;
+
+    // 왼쪽 창 제목을 실시간 미리보기 모드로 변경
+    els.origCardTitle.innerHTML = `&lt;${tool ? tool.name : 'Live'} 미리보기&gt;`;
+    els.liveStatusBadge.hidden = false;
+    els.origImg.hidden = true;
+    els.livePreviewCanvas.hidden = false;
 
     // 모든 서브패널 숨김
     const panels = [
@@ -498,23 +516,14 @@
 
   // 5. 각 도구별 컨트롤 이벤트 및 초기화
   function bindAllToolControls() {
-    // 1. Resize
     bindResizeControls();
-    // 2. Crop
     bindCropControls();
-    // 3. Downsizing
     bindDownsizingControls();
-    // 4. Convert
     bindConvertControls();
-    // 5. Rotate
     bindRotateControls();
-    // 6. Optimize
     bindOptimizeControls();
-    // 7. Reverse
     bindReverseControls();
-    // 8. Speed
     bindSpeedControls();
-    // 9. Cut
     bindCutControls();
   }
 
@@ -546,6 +555,7 @@
       updateLockResizeUi();
     });
 
+    // 슬라이더를 마우스로 밀 때 즉각 이벤트
     els.rangeResizeW.addEventListener("input", (e) => {
       const w = parseInt(e.target.value, 10);
       state.resize.width = w;
@@ -572,6 +582,7 @@
     els.pctResizeW.textContent = Math.round((state.resize.width / state.origWidth) * 100) + "%";
     els.valResizeH.textContent = state.resize.height;
     els.pctResizeH.textContent = Math.round((state.resize.height / state.origHeight) * 100) + "%";
+    updateLiveInfoGrid(state.resize.width, state.resize.height, state.origFrames.length);
   }
 
   function updateLockResizeUi() {
@@ -745,7 +756,20 @@
     const total = state.origFrames.length;
     els.valCutStart.textContent = `${state.cut.start} / ${total}`;
     els.valCutEnd.textContent = `${state.cut.end} / ${total}`;
-    els.valCutTotal.textContent = (state.cut.end - state.cut.start + 1);
+    const count = (state.cut.end - state.cut.start + 1);
+    els.valCutTotal.textContent = count;
+    updateLiveInfoGrid(state.origWidth, state.origHeight, count);
+  }
+
+  function updateLiveInfoGrid(w, h, frames) {
+    els.origInfoGrid.innerHTML = `
+      <div class="info-label">파일명</div>
+      <div class="info-value">${escapeHtml(state.fileName)}</div>
+      <div class="info-label">실시간 해상도</div>
+      <div class="info-value"><b>${w} × ${h} px</b> (${Math.round((w / state.origWidth) * 100)}%)</div>
+      <div class="info-label">프레임 수</div>
+      <div class="info-value">${frames} 프레임</div>
+    `;
   }
 
   // 6. 실시간 미리보기 (Live Preview Loop)
@@ -757,7 +781,6 @@
     function loop(now) {
       if (!state.activeTool || !state.origFrames.length) return;
 
-      // 현재 편집 모드에 따른 시퀀스 및 딜레이 계산
       const activeFrames = getProcessedSequencePreview();
       if (activeFrames.length > 0) {
         const cur = activeFrames[state.previewFrameIdx % activeFrames.length];
@@ -784,23 +807,19 @@
     }
   }
 
-  // 실시간 프리뷰 프레임 시퀀스 (Cut, Reverse, Downsizing 건너뛰기 반영)
   function getProcessedSequencePreview() {
     let list = state.origFrames;
 
-    // Cut 적용
     if (state.activeTool === "cut") {
       const s = state.cut.start - 1;
       const e = state.cut.end;
       list = list.slice(s, e);
     }
 
-    // Downsizing의 프레임 빼기
     if (state.activeTool === "downsizing" && state.downsizing.dropFrames) {
       list = list.filter((_, idx) => idx % 2 === 0);
     }
 
-    // Reverse 적용
     if (state.activeTool === "reverse") {
       if (state.reverse.mode === "true") {
         list = [...list].reverse();
@@ -813,7 +832,6 @@
     return list.length ? list : state.origFrames;
   }
 
-  // 실시간 캔버스 1프레임 렌더링 (Resize, Crop, Rotate 등 변형 적용)
   function renderLiveFrame(sourceCanvas) {
     const pCanvas = els.livePreviewCanvas;
     const pCtx = pCanvas.getContext("2d");
@@ -821,7 +839,6 @@
     const sw = sourceCanvas.width;
     const sh = sourceCanvas.height;
 
-    // 도구별 타겟 캔버스 규격 계산
     let dw = sw;
     let dh = sh;
 
@@ -831,7 +848,6 @@
     } else if (state.activeTool === "crop") {
       const [aw, ah] = state.crop.aspect.split(":").map(Number);
       const targetRatio = aw / ah;
-      // 가로 기준 박스
       dw = sw;
       dh = Math.round(sw / targetRatio);
     } else if (state.activeTool === "downsizing" && state.downsizing.scale) {
@@ -845,10 +861,19 @@
       }
     }
 
+    // 캔버스 버퍼 크기
     if (pCanvas.width !== dw || pCanvas.height !== dh) {
       pCanvas.width = dw;
       pCanvas.height = dh;
     }
+
+    // [핵심] 사용자가 비율을 늘리고 줄일 때 캔버스가 실제로 커지고 작아지도록 CSS width/height 직접 반영
+    // 원본 크기 대비 비율에 따라 최대 크기 한도 내에서 스케일링
+    pCanvas.style.width = dw + "px";
+    pCanvas.style.height = dh + "px";
+    pCanvas.style.maxWidth = "100%";
+    pCanvas.style.maxHeight = "440px";
+    pCanvas.style.objectFit = "contain";
 
     pCtx.clearRect(0, 0, dw, dh);
 
@@ -857,7 +882,6 @@
       if (state.crop.fillMode === "contain") {
         pCtx.fillStyle = state.crop.bgColor;
         pCtx.fillRect(0, 0, dw, dh);
-        // 중앙 맞춤 contain
         const sRatio = sw / sh;
         const dRatio = dw / dh;
         let rw = dw, rh = dh, rx = 0, ry = 0;
@@ -870,7 +894,6 @@
         }
         pCtx.drawImage(sourceCanvas, rx, ry, rw, rh);
       } else {
-        // cover (꽉 채우기)
         const sRatio = sw / sh;
         const dRatio = dw / dh;
         let sx = 0, sy = 0, sw_crop = sw, sh_crop = sh;
@@ -929,9 +952,7 @@
     }
   }
 
-  // GIF 생성 파이프라인 (Resize, Crop, Downsizing, Rotate, Optimize, Reverse, Speed, Cut 공통)
   function executeGifGeneration(tool) {
-    // 1. 프레임 시퀀스 추출
     let frameList = state.origFrames;
 
     if (tool === "cut") {
@@ -951,7 +972,6 @@
       }
     }
 
-    // 2. 출력 치수 결정
     const firstCanvas = frameList[0].canvas;
     const sw = firstCanvas.width;
     const sh = firstCanvas.height;
@@ -975,15 +995,13 @@
       }
     }
 
-    // 3. 인코더 옵션 결정
     let quality = 10;
     if (tool === "downsizing" && state.downsizing.reduceQuality) {
-      quality = 24; // 높은 값일수록 압축률 높고 화질 낮아짐
+      quality = 24;
     } else if (tool === "optimize") {
       quality = state.optimize.mode === "smart" ? 12 : 8;
     }
 
-    // Worker Script URL
     let workerUrl = "lib/gif.worker.js";
     if (window.GIF_WORKER_SOURCE) {
       workerUrl = URL.createObjectURL(
@@ -999,7 +1017,6 @@
       workerScript: workerUrl
     });
 
-    // 4. 프레임 렌더링 및 gif 추가
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = outW;
     tempCanvas.height = outH;
@@ -1051,7 +1068,6 @@
         tCtx.drawImage(f.canvas, 0, 0, outW, outH);
       }
 
-      // 속도 조절 딜레이 반영
       let delay = f.delay;
       if (tool === "speed") {
         delay = Math.max(20, Math.round(f.delay / state.speed.rate));
@@ -1072,7 +1088,6 @@
     gif.render();
   }
 
-  // JPG 변환 (대표 컷 고화질 추출)
   function executeConvertJpg() {
     updateProgress(50, "JPG 이미지 추출 중...");
     setTimeout(() => {
@@ -1083,7 +1098,6 @@
     }, 150);
   }
 
-  // MP4 비디오 변환 (MediaRecorder 지원)
   function executeConvertMp4() {
     updateProgress(20, "비디오 변환 녹화 준비 중...");
 
@@ -1094,7 +1108,6 @@
     vCanvas.height = sh;
     const vCtx = vCanvas.getContext("2d");
 
-    // 지원 마임타입 감지 (mp4 우선, 지원 안되면 webm fallback)
     let mime = "video/mp4";
     let ext = "mp4";
     if (!MediaRecorder.isTypeSupported("video/mp4")) {
@@ -1117,7 +1130,6 @@
 
     recorder.start();
 
-    // 프레임 순차 드로잉 재생 (총 루프 1회)
     let idx = 0;
     const total = state.origFrames.length;
 
@@ -1151,7 +1163,7 @@
     els.toolGoBtn.disabled = false;
     els.toolProgress.hidden = true;
 
-    // 1. 왼쪽에 있던 <Original GIF> 창은 자동으로 닫힘
+    // 1. 왼쪽에 있던 창은 접어줌
     els.origCardBody.classList.add("collapsed");
     els.origFoldBtn.textContent = "▶";
 
@@ -1159,7 +1171,6 @@
     state.resultBlob = blob;
     state.resultMime = mime;
     state.resultExt = ext;
-    // 기본 파일 이름: 원래파일이름_ed.확장자
     state.resultName = `${state.baseName}_ed.${ext}`;
 
     if (state.resultBlobUrl) URL.revokeObjectURL(state.resultBlobUrl);
@@ -1172,7 +1183,6 @@
     els.resultCardBody.classList.remove("collapsed");
     els.resultFoldBtn.textContent = "▼";
 
-    // 미리보기 렌더링 (비디오 또는 이미지)
     els.resultPreviewWrap.innerHTML = "";
     if (ext === "mp4" || ext === "webm") {
       const video = document.createElement("video");
@@ -1190,10 +1200,7 @@
       els.resultPreviewWrap.appendChild(img);
     }
 
-    // 파일 정보 렌더링
     renderResultInfo(width, height, blob.size, frameCount);
-
-    // 부드럽게 스크롤
     els.resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -1216,7 +1223,7 @@
     `;
   }
 
-  // 9. 마지막 저장 기능 (showSaveFilePicker 기반 스마트 저장)
+  // 9. 파일 저장 (showSaveFilePicker)
   function bindSavePicker() {
     els.saveResultBtn.addEventListener("click", async () => {
       if (!state.resultBlob) return;
@@ -1224,7 +1231,6 @@
       const suggestedName = state.resultName || `${state.baseName}_ed.${state.resultExt}`;
       const ext = state.resultExt;
 
-      // 브라우저의 파일 시스템 액세스 API (폴더 및 파일명 선택 대화상자) 지원 여부 확인
       if (window.showSaveFilePicker) {
         try {
           const typeDescription = ext.toUpperCase() + " 파일";
@@ -1244,15 +1250,11 @@
           await writable.close();
           return;
         } catch (err) {
-          if (err.name === "AbortError") {
-            // 사용자가 저장 취소
-            return;
-          }
+          if (err.name === "AbortError") return;
           console.warn("showSaveFilePicker 실패, 기본 다운로드 폴백 진행:", err);
         }
       }
 
-      // showSaveFilePicker를 지원하지 않는 브라우저이거나 오류 시 일반 다운로드 트리거
       const a = document.createElement("a");
       a.href = state.resultBlobUrl;
       a.download = suggestedName;
