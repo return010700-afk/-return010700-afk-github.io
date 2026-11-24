@@ -81,10 +81,38 @@
     cut: {
       start: 1,
       end: 1
-    }
+    },
+
+    // 10. Sticker 상태
+    stickers: [], // { id, icon, x, y, size }
+    selectedStickerId: null,
+    stickerSize: 48,
+
+    // 11. Text 상태
+    texts: [], // { id, text, x, y, size, color, font }
+    selectedTextId: null,
+    textDraft: {
+      text: "Hello GIF!",
+      size: 32,
+      color: "#ffffff",
+      font: "Malgun Gothic, sans-serif"
+    },
+
+    // 12. Draw 상태
+    draw: {
+      mode: "brush", // 'brush' | 'eraser'
+      color: "#ff2a2a",
+      width: 5,
+      isDrawing: false,
+      strokes: [], // [ { mode, color, width, points: [{x, y}] } ]
+      currentStroke: null
+    },
+
+    // 오버레이 드래그 제어
+    dragTarget: null // { type: 'sticker'|'text', id, offsetX, offsetY }
   };
 
-  // 9개 도구 목록 메타데이터
+  // 12개 도구 목록 메타데이터
   const TOOLS = [
     { id: "resize", name: "Resize", icon: "📐", title: "Resize (크기 조절)" },
     { id: "crop", name: "Crop", icon: "✂️", title: "Crop (비율 자르기 & 여백 채우기)" },
@@ -94,7 +122,10 @@
     { id: "optimize", name: "Optimize", icon: "⚡", title: "Optimize (화질 유지 최적화)" },
     { id: "reverse", name: "Reverse", icon: "◀️", title: "Reverse (역재생 & 왕복)" },
     { id: "speed", name: "Speed", icon: "⏱️", title: "Speed (재생 속도 조절)" },
-    { id: "cut", name: "Cut", icon: "🎞️", title: "Cut (구간 자르기)" }
+    { id: "cut", name: "Cut", icon: "🎞️", title: "Cut (구간 자르기)" },
+    { id: "sticker", name: "Sticker", icon: "💖", title: "Sticker (스티커 넣기)" },
+    { id: "text", name: "Text", icon: "✍️", title: "Text (글씨 쓰기)" },
+    { id: "draw", name: "Draw", icon: "🎨", title: "Draw (그림 그리기)" }
   ];
 
   // DOM 캐싱
@@ -125,6 +156,7 @@
     origPreviewWrap: document.getElementById("origPreviewWrap"),
     origImg: document.getElementById("origImg"),
     livePreviewCanvas: document.getElementById("livePreviewCanvas"),
+    liveOverlayCanvas: document.getElementById("liveOverlayCanvas"),
     origInfoGrid: document.getElementById("origInfoGrid"),
 
     // 왼쪽 결과 카드
@@ -140,6 +172,7 @@
     toolsCardTitle: document.getElementById("toolsCardTitle"),
     toolsGrid: document.getElementById("toolsGrid"),
     toolDetailContainer: document.getElementById("toolDetailContainer"),
+    liveHintText: document.getElementById("liveHintText"),
 
     // 서브패널들
     panelResize: document.getElementById("panelResize"),
@@ -151,6 +184,9 @@
     panelReverse: document.getElementById("panelReverse"),
     panelSpeed: document.getElementById("panelSpeed"),
     panelCut: document.getElementById("panelCut"),
+    panelSticker: document.getElementById("panelSticker"),
+    panelText: document.getElementById("panelText"),
+    panelDraw: document.getElementById("panelDraw"),
 
     // 공통 버튼 & 프로그레스
     toolBackBtn: document.getElementById("toolBackBtn"),
@@ -205,7 +241,32 @@
     rangeCutEnd: document.getElementById("rangeCutEnd"),
     valCutStart: document.getElementById("valCutStart"),
     valCutEnd: document.getElementById("valCutEnd"),
-    valCutTotal: document.getElementById("valCutTotal")
+    valCutTotal: document.getElementById("valCutTotal"),
+
+    // 10. Sticker 엘리먼트
+    stickerPalette: document.getElementById("stickerPalette"),
+    rangeStickerSize: document.getElementById("rangeStickerSize"),
+    valStickerSize: document.getElementById("valStickerSize"),
+    btnDeleteSelectedSticker: document.getElementById("btnDeleteSelectedSticker"),
+    btnClearAllStickers: document.getElementById("btnClearAllStickers"),
+
+    // 11. Text 엘리먼트
+    inputTextString: document.getElementById("inputTextString"),
+    inputTextColor: document.getElementById("inputTextColor"),
+    rangeTextSize: document.getElementById("rangeTextSize"),
+    valTextSize: document.getElementById("valTextSize"),
+    fontFamilyGroup: document.getElementById("fontFamilyGroup"),
+    btnApplyTextItem: document.getElementById("btnApplyTextItem"),
+    btnDeleteSelectedText: document.getElementById("btnDeleteSelectedText"),
+
+    // 12. Draw 엘리먼트
+    drawModeGroup: document.getElementById("drawModeGroup"),
+    drawColorRow: document.getElementById("drawColorRow"),
+    drawPenColor: document.getElementById("drawPenColor"),
+    rangeDrawWidth: document.getElementById("rangeDrawWidth"),
+    valDrawWidth: document.getElementById("valDrawWidth"),
+    btnUndoDraw: document.getElementById("btnUndoDraw"),
+    btnClearDraw: document.getElementById("btnClearDraw")
   };
 
   init();
@@ -216,6 +277,7 @@
     bindFold();
     bindToolsNavigation();
     bindAllToolControls();
+    bindOverlayEvents();
     bindCommonAction();
     bindSavePicker();
   }
@@ -293,6 +355,11 @@
     state.baseName = file.name.replace(/\.[^/.]+$/, "");
     state.fileSize = file.size;
 
+    // 장식 아이템 초기화
+    state.stickers = [];
+    state.texts = [];
+    state.draw.strokes = [];
+
     if (state.origBlobUrl) URL.revokeObjectURL(state.origBlobUrl);
     state.origBlobUrl = URL.createObjectURL(file);
 
@@ -363,8 +430,6 @@
         }
 
         state.origFrames = frames;
-
-        // 화면 전환
         setupWorkspace();
       } catch (err) {
         console.error("GIF 파싱 에러:", err);
@@ -386,14 +451,11 @@
     els.origImg.hidden = false;
     els.origImg.src = state.origBlobUrl;
     els.livePreviewCanvas.hidden = true;
+    els.liveOverlayCanvas.hidden = true;
     els.liveStatusBadge.hidden = true;
 
     renderOriginalInfo();
-
-    // 결과 카드 초기 숨김
     els.resultCard.hidden = true;
-
-    // 도구 메뉴 노출
     showToolsMenu();
   }
 
@@ -431,7 +493,7 @@
     });
   }
 
-  // 4. 9개 도구 탐색 및 메뉴
+  // 4. 12개 도구 탐색 및 메뉴
   function bindToolsNavigation() {
     els.toolsGrid.innerHTML = TOOLS.map(t => `
       <button type="button" class="tool-btn" data-tool="${t.id}">
@@ -457,11 +519,12 @@
     els.toolDetailContainer.hidden = true;
     els.toolProgress.hidden = true;
 
-    // 왼쪽 창을 다시 순수 원본 이미지 모드로 복원
+    // 왼쪽 창을 순수 원본 모드로 복원
     els.origCardTitle.innerHTML = "&lt;Original GIF&gt;";
     els.liveStatusBadge.hidden = true;
     els.origImg.hidden = false;
     els.livePreviewCanvas.hidden = true;
+    els.liveOverlayCanvas.hidden = true;
     renderOriginalInfo();
   }
 
@@ -474,21 +537,40 @@
     els.toolProgress.hidden = true;
     els.toolGoBtn.disabled = false;
 
-    // 왼쪽 창 제목을 실시간 미리보기 모드로 변경
+    // 왼쪽 창을 실시간 미리보기 모드로 변경
     els.origCardTitle.innerHTML = `&lt;${tool ? tool.name : 'Live'} 미리보기&gt;`;
     els.liveStatusBadge.hidden = false;
     els.origImg.hidden = true;
     els.livePreviewCanvas.hidden = false;
 
+    // 스티커, 텍스트, 그리기 모드일 때만 인터랙티브 오버레이 활성화
+    const isInteractive = (toolId === "sticker" || toolId === "text" || toolId === "draw");
+    els.liveOverlayCanvas.hidden = !isInteractive;
+    if (toolId === "draw") {
+      els.liveOverlayCanvas.style.cursor = "crosshair";
+    } else if (toolId === "sticker" || toolId === "text") {
+      els.liveOverlayCanvas.style.cursor = "move";
+    } else {
+      els.liveOverlayCanvas.style.cursor = "default";
+    }
+
+    // 힌트 텍스트 맞춤 변경
+    if (isInteractive) {
+      els.liveHintText.innerHTML = "왼쪽 화면에서 마우스로 <strong>스티커/글자를 드래그</strong>하거나 <strong>직접 선을 그려</strong> 꾸밀 수 있습니다!";
+    } else {
+      els.liveHintText.innerHTML = "오른쪽에서 옵션을 조절하면 <strong>왼쪽 미리보기 창에 즉시 실시간으로 반영</strong>됩니다!";
+    }
+
     // 모든 서브패널 숨김
     const panels = [
       els.panelResize, els.panelCrop, els.panelDownsizing,
       els.panelConvert, els.panelRotate, els.panelOptimize,
-      els.panelReverse, els.panelSpeed, els.panelCut
+      els.panelReverse, els.panelSpeed, els.panelCut,
+      els.panelSticker, els.panelText, els.panelDraw
     ];
     panels.forEach(p => p.hidden = true);
 
-    // 해당 패널 초기화 및 표시
+    // 해당 패널 초기화 및 노출
     if (toolId === "resize") {
       initResizePanel();
       els.panelResize.hidden = false;
@@ -509,6 +591,12 @@
     } else if (toolId === "cut") {
       initCutPanel();
       els.panelCut.hidden = false;
+    } else if (toolId === "sticker") {
+      els.panelSticker.hidden = false;
+    } else if (toolId === "text") {
+      els.panelText.hidden = false;
+    } else if (toolId === "draw") {
+      els.panelDraw.hidden = false;
     }
 
     startLivePreview();
@@ -525,6 +613,9 @@
     bindReverseControls();
     bindSpeedControls();
     bindCutControls();
+    bindStickerControls();
+    bindTextControls();
+    bindDrawControls();
   }
 
   // --- Resize ---
@@ -555,7 +646,6 @@
       updateLockResizeUi();
     });
 
-    // 슬라이더를 마우스로 밀 때 즉각 이벤트
     els.rangeResizeW.addEventListener("input", (e) => {
       const w = parseInt(e.target.value, 10);
       state.resize.width = w;
@@ -761,6 +851,247 @@
     updateLiveInfoGrid(state.origWidth, state.origHeight, count);
   }
 
+  // --- 10. Sticker 컨트롤 ---
+  function bindStickerControls() {
+    els.stickerPalette.addEventListener("click", (e) => {
+      const btn = e.target.closest(".sticker-item");
+      if (!btn) return;
+      const icon = btn.getAttribute("data-icon");
+      addSticker(icon);
+    });
+
+    els.rangeStickerSize.addEventListener("input", (e) => {
+      const sz = parseInt(e.target.value, 10);
+      state.stickerSize = sz;
+      els.valStickerSize.textContent = `${sz}px`;
+      if (state.selectedStickerId) {
+        const target = state.stickers.find(s => s.id === state.selectedStickerId);
+        if (target) target.size = sz;
+      }
+    });
+
+    els.btnDeleteSelectedSticker.addEventListener("click", () => {
+      if (!state.selectedStickerId) return;
+      state.stickers = state.stickers.filter(s => s.id !== state.selectedStickerId);
+      state.selectedStickerId = null;
+    });
+
+    els.btnClearAllStickers.addEventListener("click", () => {
+      state.stickers = [];
+      state.selectedStickerId = null;
+    });
+  }
+
+  function addSticker(icon) {
+    const id = "stk_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    const newSticker = {
+      id: id,
+      icon: icon,
+      x: state.origWidth / 2,
+      y: state.origHeight / 2,
+      size: state.stickerSize
+    };
+    state.stickers.push(newSticker);
+    state.selectedStickerId = id;
+  }
+
+  // --- 11. Text 컨트롤 ---
+  function bindTextControls() {
+    els.inputTextString.addEventListener("input", (e) => {
+      state.textDraft.text = e.target.value;
+      if (state.selectedTextId) {
+        const t = state.texts.find(x => x.id === state.selectedTextId);
+        if (t) t.text = e.target.value;
+      }
+    });
+
+    els.inputTextColor.addEventListener("input", (e) => {
+      state.textDraft.color = e.target.value;
+      if (state.selectedTextId) {
+        const t = state.texts.find(x => x.id === state.selectedTextId);
+        if (t) t.color = e.target.value;
+      }
+    });
+
+    els.rangeTextSize.addEventListener("input", (e) => {
+      const sz = parseInt(e.target.value, 10);
+      state.textDraft.size = sz;
+      els.valTextSize.textContent = `${sz}px`;
+      if (state.selectedTextId) {
+        const t = state.texts.find(x => x.id === state.selectedTextId);
+        if (t) t.size = sz;
+      }
+    });
+
+    els.fontFamilyGroup.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-choice");
+      if (!btn) return;
+      els.fontFamilyGroup.querySelectorAll(".btn-choice").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.textDraft.font = btn.getAttribute("data-font");
+      if (state.selectedTextId) {
+        const t = state.texts.find(x => x.id === state.selectedTextId);
+        if (t) t.font = state.textDraft.font;
+      }
+    });
+
+    els.btnApplyTextItem.addEventListener("click", () => {
+      if (!state.textDraft.text.trim()) return;
+      addTextItem();
+    });
+
+    els.btnDeleteSelectedText.addEventListener("click", () => {
+      if (!state.selectedTextId) return;
+      state.texts = state.texts.filter(t => t.id !== state.selectedTextId);
+      state.selectedTextId = null;
+    });
+  }
+
+  function addTextItem() {
+    const id = "txt_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    const newText = {
+      id: id,
+      text: state.textDraft.text,
+      x: state.origWidth / 2,
+      y: state.origHeight / 2,
+      size: state.textDraft.size,
+      color: state.textDraft.color,
+      font: state.textDraft.font
+    };
+    state.texts.push(newText);
+    state.selectedTextId = id;
+  }
+
+  // --- 12. Draw 컨트롤 ---
+  function bindDrawControls() {
+    els.drawModeGroup.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-choice");
+      if (!btn) return;
+      els.drawModeGroup.querySelectorAll(".btn-choice").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      state.draw.mode = btn.getAttribute("data-mode");
+      els.drawColorRow.style.display = state.draw.mode === "brush" ? "flex" : "none";
+    });
+
+    els.drawPenColor.addEventListener("input", (e) => {
+      state.draw.color = e.target.value;
+    });
+
+    els.rangeDrawWidth.addEventListener("input", (e) => {
+      const w = parseInt(e.target.value, 10);
+      state.draw.width = w;
+      els.valDrawWidth.textContent = `${w}px`;
+    });
+
+    els.btnUndoDraw.addEventListener("click", () => {
+      state.draw.strokes.pop();
+    });
+
+    els.btnClearDraw.addEventListener("click", () => {
+      state.draw.strokes = [];
+    });
+  }
+
+  // --- 인터랙티브 오버레이 마우스 이벤트 (Sticker, Text 드래그 & 그림 그리기) ---
+  function bindOverlayEvents() {
+    const oCanvas = els.liveOverlayCanvas;
+
+    oCanvas.addEventListener("mousedown", (e) => {
+      const pos = getOverlayMousePos(e);
+
+      // 1. Draw 모드일 때
+      if (state.activeTool === "draw") {
+        state.draw.isDrawing = true;
+        state.draw.currentStroke = {
+          mode: state.draw.mode,
+          color: state.draw.color,
+          width: state.draw.width,
+          points: [{ x: pos.x, y: pos.y }]
+        };
+        state.draw.strokes.push(state.draw.currentStroke);
+        return;
+      }
+
+      // 2. Text 모드일 때 텍스트 클릭 여부 판별
+      if (state.activeTool === "text") {
+        for (let i = state.texts.length - 1; i >= 0; i--) {
+          const t = state.texts[i];
+          const dist = Math.hypot(pos.x - t.x, pos.y - t.y);
+          if (dist < t.size * 1.5) {
+            state.selectedTextId = t.id;
+            state.dragTarget = {
+              type: "text",
+              id: t.id,
+              offsetX: pos.x - t.x,
+              offsetY: pos.y - t.y
+            };
+            return;
+          }
+        }
+      }
+
+      // 3. Sticker 모드일 때 스티커 클릭 여부 판별
+      if (state.activeTool === "sticker") {
+        for (let i = state.stickers.length - 1; i >= 0; i--) {
+          const s = state.stickers[i];
+          const dist = Math.hypot(pos.x - s.x, pos.y - s.y);
+          if (dist < s.size * 0.8) {
+            state.selectedStickerId = s.id;
+            state.dragTarget = {
+              type: "sticker",
+              id: s.id,
+              offsetX: pos.x - s.x,
+              offsetY: pos.y - s.y
+            };
+            return;
+          }
+        }
+      }
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (state.draw.isDrawing && state.draw.currentStroke) {
+        const pos = getOverlayMousePos(e);
+        state.draw.currentStroke.points.push({ x: pos.x, y: pos.y });
+        return;
+      }
+
+      if (state.dragTarget) {
+        const pos = getOverlayMousePos(e);
+        if (state.dragTarget.type === "sticker") {
+          const s = state.stickers.find(x => x.id === state.dragTarget.id);
+          if (s) {
+            s.x = pos.x - state.dragTarget.offsetX;
+            s.y = pos.y - state.dragTarget.offsetY;
+          }
+        } else if (state.dragTarget.type === "text") {
+          const t = state.texts.find(x => x.id === state.dragTarget.id);
+          if (t) {
+            t.x = pos.x - state.dragTarget.offsetX;
+            t.y = pos.y - state.dragTarget.offsetY;
+          }
+        }
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      state.draw.isDrawing = false;
+      state.draw.currentStroke = null;
+      state.dragTarget = null;
+    });
+  }
+
+  function getOverlayMousePos(e) {
+    const oCanvas = els.liveOverlayCanvas;
+    const rect = oCanvas.getBoundingClientRect();
+    const scaleX = oCanvas.width / rect.width;
+    const scaleY = oCanvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
   function updateLiveInfoGrid(w, h, frames) {
     els.origInfoGrid.innerHTML = `
       <div class="info-label">파일명</div>
@@ -832,9 +1163,12 @@
     return list.length ? list : state.origFrames;
   }
 
+  // 실시간 렌더링 (애니메이션 캔버스 + 장식 요소 오버레이 동기화)
   function renderLiveFrame(sourceCanvas) {
     const pCanvas = els.livePreviewCanvas;
     const pCtx = pCanvas.getContext("2d");
+    const oCanvas = els.liveOverlayCanvas;
+    const oCtx = oCanvas.getContext("2d");
 
     const sw = sourceCanvas.width;
     const sh = sourceCanvas.height;
@@ -861,19 +1195,28 @@
       }
     }
 
-    // 캔버스 버퍼 크기
+    // 캔버스 버퍼 크기 일치
     if (pCanvas.width !== dw || pCanvas.height !== dh) {
       pCanvas.width = dw;
       pCanvas.height = dh;
     }
 
-    // [핵심] 사용자가 비율을 늘리고 줄일 때 캔버스가 실제로 커지고 작아지도록 CSS width/height 직접 반영
-    // 원본 크기 대비 비율에 따라 최대 크기 한도 내에서 스케일링
     pCanvas.style.width = dw + "px";
     pCanvas.style.height = dh + "px";
     pCanvas.style.maxWidth = "100%";
     pCanvas.style.maxHeight = "440px";
     pCanvas.style.objectFit = "contain";
+
+    // 인터랙티브 오버레이 캔버스도 동일한 크기로 동기화
+    if (!oCanvas.hidden) {
+      if (oCanvas.width !== dw || oCanvas.height !== dh) {
+        oCanvas.width = dw;
+        oCanvas.height = dh;
+      }
+      oCanvas.style.width = pCanvas.clientWidth + "px";
+      oCanvas.style.height = pCanvas.clientHeight + "px";
+      oCtx.clearRect(0, 0, dw, dh);
+    }
 
     pCtx.clearRect(0, 0, dw, dh);
 
@@ -906,24 +1249,102 @@
         }
         pCtx.drawImage(sourceCanvas, sx, sy, sw_crop, sh_crop, 0, 0, dw, dh);
       }
-      return;
-    }
-
-    // 2. Rotate & Flip 렌더링
-    if (state.activeTool === "rotate") {
+    } else if (state.activeTool === "rotate") {
+      // 2. Rotate & Flip 렌더링
       pCtx.save();
       pCtx.translate(dw / 2, dh / 2);
       pCtx.rotate((state.rotate.deg * Math.PI) / 180);
       pCtx.scale(state.rotate.flipH ? -1 : 1, state.rotate.flipV ? -1 : 1);
       pCtx.drawImage(sourceCanvas, -sw / 2, -sh / 2, sw, sh);
       pCtx.restore();
-      return;
+    } else {
+      // 기본 렌더링
+      pCtx.imageSmoothingEnabled = true;
+      pCtx.imageSmoothingQuality = "high";
+      pCtx.drawImage(sourceCanvas, 0, 0, dw, dh);
     }
 
-    // 기본 스케일 렌더링 (Resize, Downsizing, Speed, Optimize 등)
-    pCtx.imageSmoothingEnabled = true;
-    pCtx.imageSmoothingQuality = "high";
-    pCtx.drawImage(sourceCanvas, 0, 0, dw, dh);
+    // [중요] 스티커, 텍스트, 손그림을 현재 애니메이션 캔버스 위에 바로 렌더링
+    renderDecorations(pCtx, dw, dh, false);
+
+    // 인터랙티브 오버레이 캔버스에는 선택 핸들/가이드 박스 표시
+    if (!oCanvas.hidden) {
+      renderDecorations(oCtx, dw, dh, true);
+    }
+  }
+
+  // 장식 요소(손그림, 스티커, 텍스트) 렌더링 공통 함수
+  function renderDecorations(ctx, w, h, showSelectionOutline) {
+    // 1. 손그림 그리기 (Strokes)
+    if (state.draw.strokes.length > 0) {
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      state.draw.strokes.forEach(stroke => {
+        if (!stroke.points || stroke.points.length < 2) return;
+        ctx.beginPath();
+        if (stroke.mode === "eraser") {
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.strokeStyle = "rgba(0,0,0,1)";
+        } else {
+          ctx.globalCompositeOperation = "source-over";
+          ctx.strokeStyle = stroke.color;
+        }
+        ctx.lineWidth = stroke.width;
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    // 2. 스티커 렌더링
+    state.stickers.forEach(s => {
+      ctx.save();
+      ctx.font = `${s.size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.icon, s.x, s.y);
+
+      // 선택된 스티커 강조 외곽선
+      if (showSelectionOutline && s.id === state.selectedStickerId && state.activeTool === "sticker") {
+        ctx.strokeStyle = "#2f7d4a";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(s.x - s.size * 0.6, s.y - s.size * 0.6, s.size * 1.2, s.size * 1.2);
+      }
+      ctx.restore();
+    });
+
+    // 3. 텍스트 렌더링
+    state.texts.forEach(t => {
+      ctx.save();
+      ctx.font = `bold ${t.size}px ${t.font}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // 가독성을 위한 검은색 외곽선 효과
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.75)";
+      ctx.lineWidth = Math.max(3, t.size / 8);
+      ctx.strokeText(t.text, t.x, t.y);
+
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, t.x, t.y);
+
+      // 선택된 텍스트 강조 외곽선
+      if (showSelectionOutline && t.id === state.selectedTextId && state.activeTool === "text") {
+        const metrics = ctx.measureText(t.text);
+        const tw = metrics.width;
+        const th = t.size;
+        ctx.strokeStyle = "#2f7d4a";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(t.x - tw / 2 - 8, t.y - th / 2 - 4, tw + 16, th + 8);
+      }
+      ctx.restore();
+    });
   }
 
   // 7. <Go!> 실행 버튼 & 도구별 엔진
@@ -1068,6 +1489,9 @@
         tCtx.drawImage(f.canvas, 0, 0, outW, outH);
       }
 
+      // [핵심] 모든 움직이는 프레임에 동일하게 스티커/텍스트/그림 합치기
+      renderDecorations(tCtx, outW, outH, false);
+
       let delay = f.delay;
       if (tool === "speed") {
         delay = Math.max(20, Math.round(f.delay / state.speed.rate));
@@ -1092,7 +1516,14 @@
     updateProgress(50, "JPG 이미지 추출 중...");
     setTimeout(() => {
       const frame = state.origFrames[0].canvas;
-      frame.toBlob((blob) => {
+      const jCanvas = document.createElement("canvas");
+      jCanvas.width = frame.width;
+      jCanvas.height = frame.height;
+      const jCtx = jCanvas.getContext("2d");
+      jCtx.drawImage(frame, 0, 0);
+      renderDecorations(jCtx, frame.width, frame.height, false);
+
+      jCanvas.toBlob((blob) => {
         completeProcess(blob, "image/jpeg", "jpg", frame.width, frame.height, 1, "convert_jpg");
       }, "image/jpeg", 0.95);
     }, 150);
@@ -1141,6 +1572,7 @@
       const cur = state.origFrames[idx];
       vCtx.clearRect(0, 0, sw, sh);
       vCtx.drawImage(cur.canvas, 0, 0);
+      renderDecorations(vCtx, sw, sh, false);
 
       const pct = Math.round((idx / total) * 100);
       updateProgress(pct, `비디오 변환 중... (${pct}%)`);

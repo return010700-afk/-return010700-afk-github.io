@@ -146,10 +146,13 @@
             <span id="liveStatusBadge" class="live-badge" hidden>⚡ 실시간 미리보기 동작 중</span>
           </div>
           <div id="origCardBody" class="editor-card-body">
-            <!-- 실시간 조절 시 원본 크기에서 즉시 커지고 작아지고 회전/잘리는 캔버스 -->
+            <!-- 실시간 조절 시 원본 크기에서 즉시 커지고 작아지고 회전/잘리는 캔버스 & 인터랙티브 오버레이 -->
             <div id="origPreviewWrap" class="gif-preview-wrap">
               <img id="origImg" alt="원본 GIF 미리보기" />
+              <!-- 라이브 GIF 애니메이션 재생 캔버스 -->
               <canvas id="livePreviewCanvas" hidden></canvas>
+              <!-- 스티커, 텍스트 드래그 및 그림 그리기용 인터랙티브 오버레이 캔버스 -->
+              <canvas id="liveOverlayCanvas" hidden></canvas>
             </div>
             <div id="origInfoGrid" class="file-info-grid"></div>
           </div>
@@ -183,7 +186,7 @@
             <h3 id="toolsCardTitle" class="card-title">편집 도구 (Tools)</h3>
           </div>
           <div class="editor-card-body">
-            <!-- 9개 도구 버튼 그리드 -->
+            <!-- 12개 도구 버튼 그리드 (기존 9개 + 스티커, 글씨, 그리기) -->
             <div id="toolsGrid" class="tools-grid"></div>
 
             <!-- 개별 도구 조절 패널 컨테이너 -->
@@ -191,7 +194,7 @@
               <!-- 실시간 안내 배너 -->
               <div class="live-hint-banner">
                 <span class="live-hint-icon">💡</span>
-                <span class="live-hint-text">오른쪽에서 옵션을 조절하면 <strong>왼쪽 미리보기 창에 즉시 실시간으로 반영</strong>됩니다!</span>
+                <span id="liveHintText" class="live-hint-text">오른쪽에서 옵션을 조절하면 <strong>왼쪽 미리보기 창에 즉시 실시간으로 반영</strong>됩니다!</span>
               </div>
 
               <!-- 1. Resize 패널 -->
@@ -376,6 +379,103 @@
                   <p style="font-size:13px; color:var(--muted); margin:0;">
                     선택 구간: 총 <strong id="valCutTotal">1</strong>개 프레임 추출 예정
                   </p>
+                </div>
+              </div>
+
+              <!-- 10. Sticker (스티커 넣기) 패널 -->
+              <div id="panelSticker" class="tool-subpanel" hidden>
+                <div class="ctrl-card">
+                  <span class="ctrl-label">원하는 스티커를 클릭해서 추가하세요</span>
+                  <div class="sticker-selector" id="stickerPalette">
+                    <!-- 하트, 별, 화살표, 말풍선, 웃는 얼굴 등 귀여운 이모지/아이콘 -->
+                    <button type="button" class="sticker-item" data-icon="❤️">❤️</button>
+                    <button type="button" class="sticker-item" data-icon="💖">💖</button>
+                    <button type="button" class="sticker-item" data-icon="⭐">⭐</button>
+                    <button type="button" class="sticker-item" data-icon="✨">✨</button>
+                    <button type="button" class="sticker-item" data-icon="➡️">➡️</button>
+                    <button type="button" class="sticker-item" data-icon="⬆️">⬆️</button>
+                    <button type="button" class="sticker-item" data-icon="💬">💬</button>
+                    <button type="button" class="sticker-item" data-icon="💭">💭</button>
+                    <button type="button" class="sticker-item" data-icon="😊">😊</button>
+                    <button type="button" class="sticker-item" data-icon="🥳">🥳</button>
+                    <button type="button" class="sticker-item" data-icon="🍀">🍀</button>
+                    <button type="button" class="sticker-item" data-icon="🔥">🔥</button>
+                  </div>
+                  <div class="ctrl-row" style="margin-top:8px;">
+                    <div class="ctrl-row-header">
+                      <span class="ctrl-label">선택한 스티커 크기</span>
+                      <span class="ctrl-val" id="valStickerSize">48px</span>
+                    </div>
+                    <input type="range" id="rangeStickerSize" class="custom-range" min="20" max="140" value="48" />
+                  </div>
+                  <div class="overlay-actions">
+                    <button type="button" id="btnDeleteSelectedSticker" class="ghost-btn">선택한 스티커 삭제</button>
+                    <button type="button" id="btnClearAllStickers" class="ghost-btn">스티커 전체 지우기</button>
+                  </div>
+                  <p class="ctrl-hint">📌 왼쪽 화면에서 스티커를 마우스로 끌어서 원하는 위치에 놓을 수 있습니다.</p>
+                </div>
+              </div>
+
+              <!-- 11. Text (글씨 쓰기) 패널 -->
+              <div id="panelText" class="tool-subpanel" hidden>
+                <div class="ctrl-card">
+                  <div class="ctrl-row">
+                    <span class="ctrl-label">텍스트 내용</span>
+                    <input type="text" id="inputTextString" class="text-input-field" placeholder="GIF 위에 쓸 글자를 입력하세요" value="Hello GIF!" />
+                  </div>
+                  <div class="ctrl-row">
+                    <div class="ctrl-row-header">
+                      <span class="ctrl-label">글자 색상 &amp; 크기</span>
+                      <span class="ctrl-val" id="valTextSize">32px</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                      <input type="color" id="inputTextColor" value="#ffffff" style="cursor:pointer; border:1px solid #ccc; border-radius:4px; height:36px; width:52px;" />
+                      <input type="range" id="rangeTextSize" class="custom-range" min="14" max="90" value="32" style="flex:1;" />
+                    </div>
+                  </div>
+                  <div class="ctrl-row">
+                    <span class="ctrl-label">글씨체 (Font Style)</span>
+                    <div class="btn-choice-group" id="fontFamilyGroup">
+                      <button type="button" class="btn-choice active" data-font="Malgun Gothic, sans-serif">기본체</button>
+                      <button type="button" class="btn-choice" data-font="'Arial Black', Impact, sans-serif">굵은체</button>
+                      <button type="button" class="btn-choice" data-font="'Comic Sans MS', cursive, sans-serif">손글씨체</button>
+                      <button type="button" class="btn-choice" data-font="'Courier New', monospace">타자기체</button>
+                    </div>
+                  </div>
+                  <div class="overlay-actions">
+                    <button type="button" id="btnApplyTextItem" class="btn-choice active" style="margin-top:4px;">+ 새 텍스트 추가하기</button>
+                    <button type="button" id="btnDeleteSelectedText" class="ghost-btn">선택한 텍스트 삭제</button>
+                  </div>
+                  <p class="ctrl-hint">📌 왼쪽 화면에서 글자를 마우스로 원하는 위치로 자유롭게 드래그하세요.</p>
+                </div>
+              </div>
+
+              <!-- 12. Draw (그림 그리기) 패널 -->
+              <div id="panelDraw" class="tool-subpanel" hidden>
+                <div class="ctrl-card">
+                  <span class="ctrl-label">도구 모드</span>
+                  <div class="btn-choice-group" id="drawModeGroup">
+                    <button type="button" class="btn-choice active" data-mode="brush">✏️ 브러시 펜</button>
+                    <button type="button" class="btn-choice" data-mode="eraser">🧹 지우개</button>
+                  </div>
+                  <div class="ctrl-row" id="drawColorRow">
+                    <div class="ctrl-row-header">
+                      <span class="ctrl-label">펜 색상</span>
+                      <input type="color" id="drawPenColor" value="#ff2a2a" style="cursor:pointer; border:1px solid #ccc; border-radius:4px; height:34px; width:50px;" />
+                    </div>
+                  </div>
+                  <div class="ctrl-row">
+                    <div class="ctrl-row-header">
+                      <span class="ctrl-label">펜/지우개 굵기</span>
+                      <span class="ctrl-val" id="valDrawWidth">5px</span>
+                    </div>
+                    <input type="range" id="rangeDrawWidth" class="custom-range" min="1" max="40" value="5" />
+                  </div>
+                  <div class="overlay-actions">
+                    <button type="button" id="btnUndoDraw" class="ghost-btn">↩️ 실행 취소 (되돌리기)</button>
+                    <button type="button" id="btnClearDraw" class="ghost-btn">전체 지우기</button>
+                  </div>
+                  <p class="ctrl-hint">📌 마우스로 왼쪽 GIF 화면 위에 직접 자유롭게 선을 그려보세요!</p>
                 </div>
               </div>
 
