@@ -179,17 +179,79 @@
         </div>
       </div>
 
-      <!-- 오른쪽 영역: 편집 도구 창 -->
+      <!-- 오른쪽 영역: 편집 및 꾸미기 도구 창 -->
       <div class="workspace-col right-col">
         <div id="toolsCard" class="editor-card">
           <div class="editor-card-header">
-            <h3 id="toolsCardTitle" class="card-title">편집 도구 (Tools)</h3>
+            <h3 id="toolsCardTitle" class="card-title">도구 선택</h3>
           </div>
           <div class="editor-card-body">
-            <!-- 12개 도구 버튼 그리드 (기존 9개 + 스티커, 글씨, 그리기) -->
-            <div id="toolsGrid" class="tools-grid"></div>
+            <!-- 1. 도구 메뉴 래퍼 (편집 도구 9개 + 밑에 꾸미기 기능 3개) -->
+            <div id="toolsMenuWrapper">
+              <!-- 섹션 A: 편집 기능 (9개) -->
+              <div class="tool-section-head">
+                <span class="tool-section-title">🛠️ 편집 기능</span>
+              </div>
+              <div id="toolsEditGrid" class="tools-grid">
+                <button type="button" class="tool-btn" data-tool="resize">
+                  <span class="tool-icon">📐</span>
+                  <span class="tool-name">Resize</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="crop">
+                  <span class="tool-icon">✂️</span>
+                  <span class="tool-name">Crop</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="downsizing">
+                  <span class="tool-icon">📉</span>
+                  <span class="tool-name">Downsizing</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="convert">
+                  <span class="tool-icon">🔄</span>
+                  <span class="tool-name">Format Convert</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="rotate">
+                  <span class="tool-icon">🔁</span>
+                  <span class="tool-name">Rotate</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="optimize">
+                  <span class="tool-icon">⚡</span>
+                  <span class="tool-name">Optimize</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="reverse">
+                  <span class="tool-icon">◀️</span>
+                  <span class="tool-name">Reverse</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="speed">
+                  <span class="tool-icon">⏱️</span>
+                  <span class="tool-name">Speed</span>
+                </button>
+                <button type="button" class="tool-btn" data-tool="cut">
+                  <span class="tool-icon">🎞️</span>
+                  <span class="tool-name">Cut</span>
+                </button>
+              </div>
 
-            <!-- 개별 도구 조절 패널 컨테이너 -->
+              <!-- 섹션 B: 꾸미기 기능 (밑에 스티커 넣기, 글씨 쓰기, 그림 그리기 3개) -->
+              <div class="tool-section-head" style="margin-top: 26px;">
+                <span class="tool-section-title">✨ 꾸미기 기능</span>
+              </div>
+              <div id="toolsDecorateGrid" class="tools-grid decorate-grid">
+                <button type="button" class="tool-btn decorate-btn" data-tool="sticker">
+                  <span class="tool-icon">💖</span>
+                  <span class="tool-name">스티커 넣기</span>
+                </button>
+                <button type="button" class="tool-btn decorate-btn" data-tool="text">
+                  <span class="tool-icon">✍️</span>
+                  <span class="tool-name">글씨 쓰기</span>
+                </button>
+                <button type="button" class="tool-btn decorate-btn" data-tool="draw">
+                  <span class="tool-icon">🎨</span>
+                  <span class="tool-name">그림 그리기</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. 개별 도구 조절 패널 컨테이너 (도구 클릭 시 노출) -->
             <div id="toolDetailContainer" class="tool-detail-panel" hidden>
               <!-- 실시간 안내 배너 -->
               <div class="live-hint-banner">
@@ -387,7 +449,6 @@
                 <div class="ctrl-card">
                   <span class="ctrl-label">원하는 스티커를 클릭해서 추가하세요</span>
                   <div class="sticker-selector" id="stickerPalette">
-                    <!-- 하트, 별, 화살표, 말풍선, 웃는 얼굴 등 귀여운 이모지/아이콘 -->
                     <button type="button" class="sticker-item" data-icon="❤️">❤️</button>
                     <button type="button" class="sticker-item" data-icon="💖">💖</button>
                     <button type="button" class="sticker-item" data-icon="⭐">⭐</button>

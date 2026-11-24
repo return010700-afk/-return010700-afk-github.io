@@ -170,7 +170,9 @@
 
     // 오른쪽 도구 카드
     toolsCardTitle: document.getElementById("toolsCardTitle"),
-    toolsGrid: document.getElementById("toolsGrid"),
+    toolsMenuWrapper: document.getElementById("toolsMenuWrapper"),
+    toolsEditGrid: document.getElementById("toolsEditGrid"),
+    toolsDecorateGrid: document.getElementById("toolsDecorateGrid"),
     toolDetailContainer: document.getElementById("toolDetailContainer"),
     liveHintText: document.getElementById("liveHintText"),
 
@@ -493,20 +495,16 @@
     });
   }
 
-  // 4. 12개 도구 탐색 및 메뉴
+  // 4. 도구 탐색 및 메뉴
   function bindToolsNavigation() {
-    els.toolsGrid.innerHTML = TOOLS.map(t => `
-      <button type="button" class="tool-btn" data-tool="${t.id}">
-        <span class="tool-icon">${t.icon}</span>
-        <span class="tool-name">${t.name}</span>
-      </button>
-    `).join("");
-
-    els.toolsGrid.addEventListener("click", (e) => {
+    function handleToolClick(e) {
       const btn = e.target.closest(".tool-btn");
       if (!btn) return;
       openTool(btn.getAttribute("data-tool"));
-    });
+    }
+
+    if (els.toolsEditGrid) els.toolsEditGrid.addEventListener("click", handleToolClick);
+    if (els.toolsDecorateGrid) els.toolsDecorateGrid.addEventListener("click", handleToolClick);
 
     els.toolBackBtn.addEventListener("click", showToolsMenu);
   }
@@ -514,8 +512,8 @@
   function showToolsMenu() {
     stopLivePreview();
     state.activeTool = null;
-    els.toolsCardTitle.textContent = "편집 도구 (Tools)";
-    els.toolsGrid.hidden = false;
+    els.toolsCardTitle.textContent = "도구 선택";
+    if (els.toolsMenuWrapper) els.toolsMenuWrapper.hidden = false;
     els.toolDetailContainer.hidden = true;
     els.toolProgress.hidden = true;
 
@@ -531,8 +529,8 @@
   function openTool(toolId) {
     state.activeTool = toolId;
     const tool = TOOLS.find(t => t.id === toolId);
-    els.toolsCardTitle.textContent = tool ? tool.title : "편집 도구";
-    els.toolsGrid.hidden = true;
+    els.toolsCardTitle.textContent = tool ? tool.title : "도구 설정";
+    if (els.toolsMenuWrapper) els.toolsMenuWrapper.hidden = true;
     els.toolDetailContainer.hidden = false;
     els.toolProgress.hidden = true;
     els.toolGoBtn.disabled = false;

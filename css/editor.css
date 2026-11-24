@@ -337,7 +337,22 @@
   word-break: break-all;
 }
 
-/* 12개 도구 버튼 그리드 (4열 또는 3열) */
+/* 섹션 구분 헤더 */
+.tool-section-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--leaf);
+}
+
+.tool-section-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--green-dark);
+}
+
+/* 도구 버튼 그리드 */
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -378,6 +393,21 @@
 }
 
 .tool-btn:hover .tool-name {
+  color: var(--green-dark);
+}
+
+/* 꾸미기 전용 버튼 강조 스타일 */
+.decorate-grid .decorate-btn {
+  border-color: #b5ddba;
+  background: #fdfefe;
+}
+
+.decorate-grid .decorate-btn:hover {
+  background: #eef7f0;
+  border-color: var(--green);
+}
+
+.decorate-grid .tool-name {
   color: var(--green-dark);
 }
 
